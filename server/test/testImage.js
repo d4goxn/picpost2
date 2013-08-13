@@ -25,6 +25,7 @@ describe('Image', function() {
 		request(app)
 		.post('/image')
 		.attach('image', __dirname + '/sampleImage.png')
+		.attach('thumb', __dirname + '/sampleImage.thumb.png')
 		.end(function(error, response) {
 			if(error) done(error);
 
@@ -35,10 +36,11 @@ describe('Image', function() {
 	});
 
 	it('should return an error code when posting a duplicate', function(done) {
-		// Fails, see https://github.com/visionmedia/superagent/issues/144
+		// Times out, see https://github.com/visionmedia/superagent/issues/144
 		request(app)
 		.post('/image')
 		.attach('image', __dirname + '/sampleImage.png')
+		.attach('thumb', __dirname + '/sampleImage.thumb.png')
 		.end(function(error, response) {
 			if(error) done(error);
 
@@ -56,6 +58,8 @@ describe('Image', function() {
 
 			response.should.have.status(200);
 			response.body.should.have.property('images');
+			response.body.should.have.property('thumbs');
+			
 			done();
 		});
 	});
@@ -63,6 +67,18 @@ describe('Image', function() {
 	it('should be able to get an image by the same name that it was uploaded under', function(done) {
 		request(app)
 		.get(encodeURI('/image/sampleImage.png'))
+		.end(function(error, response) {
+			if(error) done(error);
+
+			response.should.have.status(200);
+
+			done();
+		});
+	});
+
+	it('should be able to get an image thumbnail by appending `.thumb` to the image name (before the extension)', function(done) {
+		request(app)
+		.get(encodeURI('/image/sampleImage.thumb.png'))
 		.end(function(error, response) {
 			if(error) done(error);
 

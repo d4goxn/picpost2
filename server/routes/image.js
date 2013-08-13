@@ -6,9 +6,10 @@ var ctrl = require(__dirname + '/../controllers/image');
 
 module.exports = {
 	list: function(request, response) {
-		ctrl.listImageURLs(function(urls) {
+		ctrl.listImageURLs(function(urls, thumbUrls) {
 			response.send({
-				images: urls
+				images: urls,
+				thumbs: thumbUrls
 			});
 		});
 	},
@@ -28,19 +29,31 @@ module.exports = {
 					});
 				}
 			});
-		} else response.sendFile(ctrl.getImagePath());
+		} else {
+			// TODO: Separate image controller and routes from thumb controller and routes.
+			ctrl.getImagePath(request.params.name, function(path) {
+				response.sendFile();
+			});
+		}
 	},
 
 	post: function(request, response) {
-		ctrl.create(request.files.image.name, request.files.imagepath, function(error, url) {
-			if(error instanceof ctrl.ConflictError) {
-				response.send(409, error);
-				console.error(JSON.stringify(error));
-			} else if(error) {
-				response.send(500);
-				console.error(JSON.stringify(error));
-			} else
-				response.send(201, url);
-		});
+		if(request.files.image && request.files.thumb) {
+			ctrl.create({
+				imageName: request.files.image.name,
+				imagePath: request.files.image.path,
+				thumbName: request.files.thumb.name,
+				thumbPath: request.files.thumb.path
+			}, function(error, url) {
+				if(error instanceof ctrl.ConflictError) {
+					response.send(409, error);
+					console.error(JSON.stringify(error));
+				} else if(error) {
+					response.send(500);
+					console.error(JSON.stringify(error));
+				} else
+					response.send(201, url);
+			});
+		} else response.send(403, 'Missing image or missing image thumbnail.');
 	}
 };
