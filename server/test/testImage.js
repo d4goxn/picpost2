@@ -5,94 +5,70 @@ var should = require('should'),
 	assert = require('assert'),
 	request = require('supertest'),
 	fs = require('fs'),
+	rimraf = require('rimraf'),
 	server = require('../server');
 
-var app = server.start();
+var app = server.app;
 
-function getImageList(done) {
-	request(app)
-	.get('/images')
-	.end(function(error, response) {
-		if(error) return done(error);
-
-		response.should.have.status(200);
-		response.body.images.should.eql({
-			images: ['test image']
+describe('Image', function() {
+	before(function(done) {
+		// Clear the uploads directory before testing.
+		rimraf(__dirname + '/../uploads-testing', function() {
+			fs.mkdirSync(__dirname + '/../uploads-testing');
+			server.start(true); // testing
+			done();
 		});
-
-		done();
 	});
-}
 
-function getImage(done) {
-	request(app)
-	.get(encodeURI('/image/test image'))
-	.end(function(error, response) {
-		if(error) return done(error);
+	it('should return a success code when a new image is posted', function(done) {
 
-		response.should.have.status(200);
-		response.body.images.should.eql({
-			imageUrl: encodeURI('test image.png')
+		request(app)
+		.post('/image')
+		.attach('image', __dirname + '/sampleImage.png')
+		.end(function(error, response) {
+			if(error) done(error);
+
+			response.should.have.status(201);
+
+			done();
 		});
-
-		done();
 	});
-}
 
-describe('Log', function() {
-	it('should return an empty list when requesting pics from an empty document', function(done) {
+	it('should return an error code when posting a duplicate', function(done) {
+		// Fails, see https://github.com/visionmedia/superagent/issues/144
+		request(app)
+		.post('/image')
+		.attach('image', __dirname + '/sampleImage.png')
+		.end(function(error, response) {
+			if(error) done(error);
+
+			response.should.have.status(409);
+
+			done();
+		});
+	});
+
+	it('should return a list from /images', function(done) {
 		request(app)
 		.get('/images')
 		.end(function(error, response) {
-			if(error) done(JSON.stringify(error));
+			if(error) done(error);
 
 			response.should.have.status(200);
-			console.log(typeof response.body.images);
 			response.body.should.have.property('images');
 			done();
 		});
 	});
 
-	it('should return a success code when an image is posted', function(done) {
+	it('should be able to get an image by the same name that it was uploaded under', function(done) {
 		request(app)
-		.post('/image')
-		.attach('image', __dirname + '/sampleImage.png')
-		.field('name', 'test pic')
+		.get(encodeURI('/image/sampleImage.png'))
 		.end(function(error, response) {
-			if(error) done(JSON.stringify(error));
+			if(error) done(error);
 
 			response.should.have.status(200);
 
 			done();
-		});
-	});
-
-	it('should be able to get a lists of images after posting an image, and get an image from the list', function(done) {
-		request(app)
-		.post('/image')
-		.attach('image', __dirname + '/sampleImage.png')
-		.field('name', 'test pic')
-		.end(function(error, response) {
-			if(error) done(JSON.stringify(error));
-
-			var gotImageList = false;
-			var gotImage = false;
-
-			function checkDone() {
-				if(gotImageList && gotImage) done();
-			}
-
-			getImageList(function(error) {
-				if(error) return done(error);
-				gotImageList = true;
-				checkDone();
-			});
-
-			getImage(function(error) {
-				if(error) return done(error);
-				gotImage = true;
-				checkDone();
-			});
 		});
 	});
 });
